@@ -7,49 +7,34 @@ from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
 
 # Basic and math packages:
-from os import path
 import pandas as pd
-import numpy as np
-from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
-cv = CountVectorizer()
-
-# Visualization and plotting packages:
-from PIL import Image, ImageOps
-from wordcloud import WordCloud, STOPWORDS, ImageColorGenerator
-import matplotlib.pyplot as plt
-#% matplotlib inline   - if we move this to a notebook
 
 # Timing the code:
 import time
 zero_time = time.perf_counter()
-from tqdm import tqdm
-# This allows to show progress of a for loop, example for fpath in tqdm(fpaths, desc="Looping over fpaths")):
 
-
-# STEP 1: Scraping the WhiskyBase website
+# STEP 1: Scraping the Whisky.com website
 
 # Initializing the driver and loading the main page on WhiskyBase:
 DRIVER_PATH = r'C:/Users/yonif/Downloads/chromedriver.exe'
 driver = webdriver.Chrome(executable_path=DRIVER_PATH)
-driver.get('https://www.whiskybase.com/whiskies/distilleries')
+driver.get('https://www.whisky.com/whisky-database/bottle-search/whisky.html')
 page_source = driver.page_source
 soup = BeautifulSoup(page_source,'html.parser')
 
-# Extracting the header row from the table:
-header = soup.find_all("table")[0].find_all("tr")[0]
-list_header = []
-for items in header:
-    try:
-        if items.get_text().strip(' \n\t') != '':  # Lots of spaces, tabs, newlines - cleared.
-            list_header.append(items.get_text().strip(' \n\t'))
-    except:
-        continue
 
-# Extracting the data from the table:
+# Initializing the database (TODO use a dataframe?)
+whiskies = []
+
+# Extracting the data from the table - TODO replace with relevant tag
 HTML_data = soup.find_all("table")[0].find_all("tr")[1:]
-addresses_of_major_distilleries = []
 
+#core_range_data_header = [["Whisky", "Distillery", "Country/Region", "Age", "Rating"]]
 data = []
+whisky_urls = []
+
+# TODO extract all URLS and relevant info found in main page.
+# TODO add filter/cache able to establish if whisky is already in database, since there are different sizes
 for element in HTML_data:
     sub_data = []
     for sub_element in element:
@@ -62,27 +47,30 @@ for element in HTML_data:
 
     try:  # Extracting the links for major distilleries for in-depth analysis:
         if float(sub_data[2]) > num_whiskies_to_be_considered_major_distillery:
-            address_major = element.find('a').get('href')
-            addresses_of_major_distilleries.append(address_major)
+            whisky_url = element.find('a').get('href')
+            whisky_urls.append(whisky_url)
     except:
         continue
 
-#print(addresses_of_major_distilleries)
 
 # Storing the data from the main page into dataframe, then as a CSV file:
-distillery_df = pd.DataFrame(data=data, columns=list_header)
-major_distillery_df = distillery_df[distillery_df['Whiskies'].astype(float) > num_whiskies_to_be_considered_major_distillery]
-major_distillery_df.to_csv('Distilleries.csv')
+distillery_df = pd.DataFrame(data=data, columns=list_header) # TODO find a header
+#major_distillery_df = distillery_df[distillery_df['Whiskies'].astype(float) > num_whiskies_to_be_considered_major_distillery]
 
 
-# For every distillery selected, we extract the core range whiskies.
+# TODO Crawler: for every URL in whiskies go to page, extract all relevant data
 
-core_range_data_header = [["Whisky", "Distillery", "Country/Region", "Age", "Rating"]]
-core_range_data = []
-reviews_data_header = [["Whisky", "Review"]]
-reviews_data = []
+for whisky_url in whisky_urls:
 
-for distillery_url in addresses_of_major_distilleries:
+    # TODO get the descriptions
+
+    # TODO get the flavor profile overview. Consider a dictionary so that you can add new flavors on the fly, or find list of flavors
+
+    # TODO (long-term) get comments, save in separate dataframe
+
+    # open question - get raw data and then parse later, or does parsing already happen here?
+
+    # old code
     driver.get(distillery_url)
     distillery_page_source = driver.page_source
     soup = BeautifulSoup(distillery_page_source, 'html.parser')
@@ -126,8 +114,9 @@ for distillery_url in addresses_of_major_distilleries:
 
             reviews_data.append([whisky_name, review_text])
 
+# TODO export the file as CSV / parquet
 # Storing the data from the main page into dataframe, then as a CSV file:
 whiskies_df = pd.DataFrame(data=core_range_data, columns=core_range_data_header)
 whiskies_df.to_csv('Whiskies.csv')
-reviews_df = pd.DataFrame(data=reviews_data, columns=reviews_data_header)
-reviews_df.to_csv('Reviews.csv')
+#reviews_df = pd.DataFrame(data=reviews_data, columns=reviews_data_header)
+#reviews_df.to_csv('Reviews.csv')
